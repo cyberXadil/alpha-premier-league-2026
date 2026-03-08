@@ -698,7 +698,7 @@ function compressImage(base64,maxWidth,quality){
 
 // ── WA MESSAGE ──
 function buildWAMsg(name,type,style,phone){
-  return `🏏 *Alpha Premier League 2026*\n\nCongratulations, *${name}*! 🎉\n\nYour registration has been successfully accepted for the *Alpha Premier League 2026*.\n\n📋 *Your Details:*\n• Player Type: ${type}\n• Playing Style: ${style}\n• Phone: ${phone}\n\n💰 Payment of ₹200 confirmed ✅\n\nGet ready to play! We will share further details soon.\n\n*– Alpha Premier League Team* 🏆`;
+  return `🏏 *Alpha Premier League 2026*\n\nCongratulations, ${name}! \n\nYour registration has been successfully accepted for the *Alpha Premier League 2026*.\n\n Your Details:\n• Player Type: ${type}\n• Playing Style: ${style}\n• Phone: ${phone}\n\n Payment of ₹200 confirmed \n\nGet ready to play! We will share further details soon.\n\n– Alpha Premier League Team`;
 }
 function waLink(phone,msg){
   const clean=phone.replace(/\D/g,'');
