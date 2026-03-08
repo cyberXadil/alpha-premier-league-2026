@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alpha Premier League – Player Registration</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&family=Barlow+Condensed:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<style>
+  :root {
+    --gold:#D4AF37; --gold-light:#F0C940; --dark:#0A0A0F; --dark2:#13131C; --dark3:#1C1C28;
+    --green:#1A7A3C; --green-bright:#22C55E; --red:#E53E3E; --white:#F5F0E8;
+    --gray:#6B7280; --border:rgba(212,175,55,0.2);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--dark);color:var(--white);font-family:'Rajdhani',sans-serif;min-height:100vh;overflow-x:hidden}
+  body::before{content:'';position:fixed;inset:0;background:
+    radial-gradient(ellipse 80% 50% at 20% -10%,rgba(26,122,60,.15) 0%,transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 110%,rgba(212,175,55,.08) 0%,transparent 60%),
+    repeating-linear-gradient(0deg,transparent,transparent 60px,rgba(255,255,255,.012) 60px,rgba(255,255,255,.012) 61px),
+    repeating-linear-gradient(90deg,transparent,transparent 60px,rgba(255,255,255,.012) 60px,rgba(255,255,255,.012) 61px);
+    pointer-events:none;z-index:0}
+
+  /* SETUP BANNER */
+  #setup-banner{position:relative;z-index:10;background:linear-gradient(135deg,#1a1a00,#2a2000);border-bottom:2px solid var(--gold);display:none}
+  #setup-banner.show{display:block}
+  .setup-inner{max-width:860px;margin:0 auto;padding:24px}
+  .setup-title{font-family:'Bebas Neue',cursive;font-size:22px;letter-spacing:3px;color:var(--gold);margin-bottom:12px}
+  .setup-steps{font-size:14px;line-height:2;color:rgba(245,240,232,.85)}
+  .setup-steps a{color:var(--gold-light)}
+  .setup-steps code{background:rgba(212,175,55,.15);border:1px solid rgba(212,175,55,.3);padding:2px 8px;border-radius:3px;font-family:monospace;font-size:13px;color:var(--gold-light);display:inline-block;margin:2px 0}
+  .setup-config-box{margin-top:14px;background:var(--dark3);border:1px solid var(--border);border-radius:6px;padding:16px 18px;font-family:monospace;font-size:13px;color:#aaa;white-space:pre;overflow-x:auto;line-height:1.8}
+  .hl{color:var(--gold-light);font-weight:bold}
+  .dismiss-btn{margin-top:16px;background:var(--gold);border:none;color:var(--dark);font-family:'Bebas Neue',cursive;font-size:16px;letter-spacing:3px;padding:9px 26px;border-radius:3px;cursor:pointer}
+
+  /* HEADER */
+  header{position:relative;text-align:center;padding:60px 20px 40px;z-index:1;border-bottom:1px solid var(--border)}
+  .league-badge{display:inline-flex;align-items:center;gap:18px;margin-bottom:20px}
+  .cricket-icon{font-size:48px;filter:drop-shadow(0 0 20px rgba(212,175,55,.5));animation:pulse-glow 3s ease-in-out infinite}
+  @keyframes pulse-glow{0%,100%{filter:drop-shadow(0 0 20px rgba(212,175,55,.5))}50%{filter:drop-shadow(0 0 35px rgba(212,175,55,.8))}}
+  .header-text h1{font-family:'Bebas Neue',cursive;font-size:clamp(42px,7vw,80px);letter-spacing:6px;line-height:.9;background:linear-gradient(135deg,var(--gold-light),var(--gold),#8B6914);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .header-text .subtitle{font-family:'Barlow Condensed',sans-serif;font-size:15px;letter-spacing:8px;color:var(--gray);text-transform:uppercase;margin-top:6px}
+  .season-tag{display:inline-block;background:linear-gradient(135deg,var(--green),#0D5A2A);border:1px solid var(--green-bright);color:var(--green-bright);font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:4px;padding:4px 16px;border-radius:2px;margin-top:14px;text-transform:uppercase}
+
+  /* CONTAINER / TABS */
+  .container{max-width:1100px;margin:0 auto;padding:40px 20px 80px;position:relative;z-index:1}
+  .tabs{display:flex;gap:2px;margin-bottom:40px;background:var(--dark2);border:1px solid var(--border);border-radius:4px;padding:4px}
+  .tab-btn{flex:1;padding:14px 20px;border:none;background:transparent;color:var(--gray);font-family:'Barlow Condensed',sans-serif;font-size:15px;letter-spacing:3px;text-transform:uppercase;cursor:pointer;border-radius:2px;transition:all .3s}
+  .tab-btn.active{background:linear-gradient(135deg,var(--gold),#A07A10);color:var(--dark);font-weight:700}
+  .tab-btn:hover:not(.active){color:var(--gold);background:rgba(212,175,55,.08)}
+  .section{display:none}.section.active{display:block}
+
+  /* FORM */
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  @media(max-width:700px){.form-grid{grid-template-columns:1fr}.span-2{grid-column:span 1!important}}
+  .span-2{grid-column:span 2}
+  .field-group{display:flex;flex-direction:column;gap:8px;animation:fade-up .4s ease both}
+  @keyframes fade-up{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  .field-group:nth-child(1){animation-delay:.05s}.field-group:nth-child(2){animation-delay:.10s}
+  .field-group:nth-child(3){animation-delay:.15s}.field-group:nth-child(4){animation-delay:.20s}
+  .field-group:nth-child(5){animation-delay:.25s}.field-group:nth-child(6){animation-delay:.30s}
+  .field-label{font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);font-weight:600}
+  .field-label span{color:var(--red);margin-left:3px}
+  input[type="text"],input[type="tel"],select{background:var(--dark3);border:1px solid var(--border);color:var(--white);font-family:'Rajdhani',sans-serif;font-size:16px;padding:14px 16px;border-radius:4px;outline:none;transition:border-color .3s,box-shadow .3s;width:100%}
+  input[type="text"]:focus,input[type="tel"]:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(212,175,55,.15)}
+  select option{background:var(--dark3)}
+
+  /* PHOTO */
+  .photo-upload-area{border:2px dashed var(--border);border-radius:4px;padding:30px;text-align:center;cursor:pointer;transition:all .3s;background:var(--dark3);position:relative;overflow:hidden}
+  .photo-upload-area:hover{border-color:var(--gold);background:rgba(212,175,55,.04)}
+  .photo-upload-area.has-file{border-color:var(--green-bright);border-style:solid}
+  .photo-upload-area input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+  .upload-icon{font-size:36px;margin-bottom:10px}.upload-text{font-size:14px;color:var(--gray)}
+  .upload-preview{width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);display:none;margin:0 auto 10px}
+
+  /* RADIO */
+  .radio-group{display:flex;flex-wrap:wrap;gap:10px}
+  .radio-option{flex:1;min-width:100px}.radio-option input{display:none}
+  .radio-option label{display:block;padding:12px 14px;background:var(--dark3);border:1px solid var(--border);border-radius:4px;text-align:center;cursor:pointer;font-size:14px;font-weight:600;letter-spacing:1px;transition:all .25s;user-select:none}
+  .radio-option input:checked+label{background:linear-gradient(135deg,rgba(212,175,55,.2),rgba(212,175,55,.05));border-color:var(--gold);color:var(--gold-light);box-shadow:0 0 12px rgba(212,175,55,.2)}
+  .radio-option label:hover{border-color:rgba(212,175,55,.5);color:var(--gold-light)}
+
+  /* PAYMENT */
+  .payment-box{background:var(--dark2);border:1px solid var(--border);border-radius:8px;padding:32px;text-align:center;position:relative;overflow:hidden}
+  .payment-box::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+  .payment-amount{font-family:'Bebas Neue',cursive;font-size:72px;color:var(--gold);line-height:1;letter-spacing:3px;text-shadow:0 0 30px rgba(212,175,55,.3)}
+  .payment-amount small{font-size:28px;vertical-align:top;margin-top:12px;display:inline-block}
+  .payment-label{font-family:'Barlow Condensed',sans-serif;letter-spacing:4px;color:var(--gray);font-size:13px;margin-bottom:28px;text-transform:uppercase}
+  .qr-container{display:inline-block;padding:16px;background:#fff;border-radius:8px;margin:0 auto 20px;box-shadow:0 0 40px rgba(212,175,55,.3)}
+  .qr-label{font-size:13px;color:var(--gray);margin-top:14px;letter-spacing:1px}
+  .upi-id-box{background:var(--dark3);border:1px solid var(--border);border-radius:4px;padding:10px 16px;font-family:'Barlow Condensed',sans-serif;font-size:15px;letter-spacing:2px;color:var(--gold-light);margin-top:12px;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;transition:all .2s}
+  .upi-id-box:hover{border-color:var(--gold)}
+  .upi-copied{color:var(--green-bright);font-size:12px;display:none}.upi-copied.show{display:inline}
+
+  /* SCREENSHOT */
+  .screenshot-upload{border:2px dashed var(--border);border-radius:4px;padding:40px 20px;text-align:center;cursor:pointer;transition:all .3s;background:var(--dark3);position:relative;margin-top:20px}
+  .screenshot-upload:hover{border-color:var(--green-bright);background:rgba(34,197,94,.04)}
+  .screenshot-upload.uploaded{border-color:var(--green-bright);border-style:solid;background:rgba(34,197,94,.05)}
+  .screenshot-upload input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+  .screenshot-preview{max-width:260px;max-height:200px;border-radius:6px;border:2px solid var(--green-bright);display:none;margin:0 auto 12px;object-fit:contain}
+  .payment-status{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;font-size:14px;font-weight:600;letter-spacing:1px}
+  .status-dot{width:10px;height:10px;border-radius:50%;background:var(--gray);transition:all .4s}
+  .payment-status.verified .status-dot{background:var(--green-bright);box-shadow:0 0 10px var(--green-bright)}
+  .payment-status.verified{color:var(--green-bright)}
+
+  /* SUBMIT */
+  .submit-btn{width:100%;padding:20px;background:linear-gradient(135deg,var(--gold),#A07A10);border:none;color:var(--dark);font-family:'Bebas Neue',cursive;font-size:22px;letter-spacing:5px;cursor:pointer;border-radius:4px;margin-top:32px;transition:all .3s;text-transform:uppercase;position:relative;overflow:hidden}
+  .submit-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 10px 30px rgba(212,175,55,.4)}
+  .submit-btn:disabled{background:var(--dark3);color:var(--gray);border:1px solid var(--border);cursor:not-allowed;letter-spacing:3px}
+
+  /* NOTES */
+  .info-note{background:rgba(26,122,60,.1);border:1px solid rgba(34,197,94,.25);border-radius:4px;padding:14px 18px;font-size:14px;color:rgba(34,197,94,.9);margin-top:16px;display:flex;align-items:flex-start;gap:10px;letter-spacing:.3px}
+  .warn-note{background:rgba(229,62,62,.08);border:1px solid rgba(229,62,62,.25);color:rgba(229,62,62,.9);border-radius:4px;padding:14px 18px;font-size:14px;margin-top:16px;display:flex;align-items:flex-start;gap:10px}
+
+  /* STEPS */
+  .steps{display:flex;align-items:center;margin-bottom:40px;overflow-x:auto}
+  .step{display:flex;align-items:center;gap:10px;padding:12px 18px;flex:1;min-width:120px}
+  .step-num{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',cursive;font-size:16px;border:2px solid var(--border);color:var(--gray);flex-shrink:0;transition:all .3s}
+  .step.done .step-num{border-color:var(--green-bright);background:rgba(34,197,94,.15);color:var(--green-bright)}
+  .step.active .step-num{border-color:var(--gold);background:rgba(212,175,55,.15);color:var(--gold)}
+  .step-label{font-size:13px;letter-spacing:1px;color:var(--gray);transition:color .3s}
+  .step.active .step-label{color:var(--gold)}.step.done .step-label{color:var(--green-bright)}
+  .step-connector{flex:1;height:1px;background:var(--border);min-width:20px}
+
+  .section-title{font-family:'Bebas Neue',cursive;font-size:28px;letter-spacing:4px;color:var(--gold);margin-bottom:24px;display:flex;align-items:center;gap:14px}
+  .section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+  .divider{height:1px;background:var(--border);margin:32px 0}
+
+  /* ADMIN MODAL */
+  .admin-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);backdrop-filter:blur(10px);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px}
+  .admin-modal-overlay.show{display:flex}
+  .admin-modal-card{background:var(--dark2);border:1px solid var(--border);border-radius:12px;padding:44px 36px;width:100%;max-width:420px;position:relative;animation:modal-in .4s cubic-bezier(.16,1,.3,1)}
+  @keyframes modal-in{from{opacity:0;transform:scale(.85) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
+  .admin-modal-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--gold),transparent);border-radius:12px 12px 0 0}
+  .admin-modal-title{font-family:'Bebas Neue',cursive;font-size:34px;letter-spacing:4px;color:var(--gold);margin-bottom:6px;text-align:center}
+  .admin-modal-sub{font-size:13px;color:var(--gray);letter-spacing:2px;text-align:center;margin-bottom:28px;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase}
+  .admin-input-wrap{position:relative;margin-bottom:16px}
+  .admin-input-wrap input{width:100%;background:var(--dark3);border:1px solid var(--border);color:var(--white);font-family:'Rajdhani',sans-serif;font-size:18px;letter-spacing:4px;padding:14px 50px 14px 16px;border-radius:4px;outline:none;transition:all .3s}
+  .admin-input-wrap input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(212,175,55,.15)}
+  .admin-input-wrap input.error{border-color:var(--red);animation:shake .4s ease}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+  .toggle-pw{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--gray);cursor:pointer;font-size:18px}
+  .toggle-pw:hover{color:var(--gold)}
+  .admin-login-btn{width:100%;padding:15px;background:linear-gradient(135deg,var(--gold),#A07A10);border:none;color:var(--dark);font-family:'Bebas Neue',cursive;font-size:20px;letter-spacing:5px;cursor:pointer;border-radius:4px;transition:all .3s;margin-top:4px}
+  .admin-login-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(212,175,55,.4)}
+  .admin-cancel-btn{width:100%;padding:12px;background:transparent;border:1px solid var(--border);color:var(--gray);font-family:'Rajdhani',sans-serif;font-size:15px;letter-spacing:2px;cursor:pointer;border-radius:4px;margin-top:10px;transition:all .2s}
+  .admin-cancel-btn:hover{border-color:var(--red);color:var(--red)}
+  .login-error-msg{color:var(--red);font-size:13px;text-align:center;margin-top:10px;display:none;letter-spacing:1px}
+  .login-error-msg.show{display:block}
+
+  /* ADMIN BAR */
+  .admin-bar{display:none;align-items:center;justify-content:space-between;background:linear-gradient(135deg,rgba(212,175,55,.12),rgba(212,175,55,.04));border:1px solid var(--border);border-radius:6px;padding:10px 20px;margin-bottom:24px;flex-wrap:wrap;gap:10px}
+  .admin-bar.visible{display:flex}
+  .admin-badge{display:flex;align-items:center;gap:8px;font-family:'Barlow Condensed',sans-serif;font-size:14px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;font-weight:600}
+  .admin-dot{width:8px;height:8px;border-radius:50%;background:var(--green-bright);box-shadow:0 0 8px var(--green-bright);animation:blink 2s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+  .logout-btn{background:transparent;border:1px solid rgba(229,62,62,.4);color:rgba(229,62,62,.8);font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:2px;padding:6px 16px;border-radius:3px;cursor:pointer;text-transform:uppercase;transition:all .2s}
+  .logout-btn:hover{background:rgba(229,62,62,.1);border-color:var(--red);color:var(--red)}
+
+  /* DB STATUS */
+  .db-status{display:inline-flex;align-items:center;gap:6px;font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:2px;padding:4px 12px;border-radius:3px}
+  .db-status.connected{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:var(--green-bright)}
+  .db-status.disconnected{background:rgba(229,62,62,.1);border:1px solid rgba(229,62,62,.3);color:#F87171}
+  .db-dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+
+  /* TABLE */
+  .table-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:14px}
+  .table-title{font-family:'Bebas Neue',cursive;font-size:32px;letter-spacing:4px;color:var(--gold)}
+  .player-count{background:var(--dark2);border:1px solid var(--border);padding:8px 18px;border-radius:4px;font-size:14px;letter-spacing:1px;color:var(--gray)}
+  .player-count span{color:var(--gold-light);font-weight:700;font-size:18px}
+  .table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:8px}
+  table{width:100%;border-collapse:collapse;min-width:960px}
+  thead tr{background:linear-gradient(135deg,rgba(212,175,55,.15),rgba(212,175,55,.05));border-bottom:1px solid var(--border)}
+  th{padding:14px 16px;font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);text-align:left;white-space:nowrap}
+  td{padding:14px 16px;font-size:15px;border-bottom:1px solid rgba(255,255,255,.05);vertical-align:middle}
+  tbody tr:hover{background:rgba(212,175,55,.04)}
+  tbody tr:last-child td{border-bottom:none}
+  .player-photo-cell{width:46px;height:46px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);display:block}
+  .type-badge{display:inline-block;padding:4px 10px;border-radius:3px;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+  .type-bat{background:rgba(34,197,94,.15);color:var(--green-bright);border:1px solid rgba(34,197,94,.3)}
+  .type-bowl{background:rgba(239,68,68,.15);color:#F87171;border:1px solid rgba(239,68,68,.3)}
+  .type-all{background:rgba(212,175,55,.15);color:var(--gold-light);border:1px solid rgba(212,175,55,.3)}
+  .payment-confirmed{display:inline-flex;align-items:center;gap:6px;color:var(--green-bright);font-size:13px;font-weight:600}
+  .serial-num{font-family:'Bebas Neue',cursive;font-size:22px;color:rgba(212,175,55,.4);letter-spacing:2px}
+  .empty-state{text-align:center;padding:80px 20px;color:var(--gray)}
+  .empty-state .empty-icon{font-size:56px;margin-bottom:16px}
+  .empty-state p{font-size:16px;letter-spacing:1px}
+
+  /* SUCCESS MODAL */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px}
+  .modal-overlay.show{display:flex}
+  .modal-card{background:var(--dark2);border:1px solid var(--gold);border-radius:12px;padding:48px 40px;text-align:center;max-width:520px;width:100%;position:relative;animation:modal-in .5s cubic-bezier(.16,1,.3,1);overflow-y:auto;max-height:90vh}
+  .modal-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--green),var(--gold),var(--green));border-radius:12px 12px 0 0}
+  .success-icon{font-size:64px;margin-bottom:20px;animation:bounce-in .6s .2s both cubic-bezier(.16,1,.3,1)}
+  @keyframes bounce-in{from{opacity:0;transform:scale(.3)}to{opacity:1;transform:scale(1)}}
+  .modal-card h2{font-family:'Bebas Neue',cursive;font-size:42px;letter-spacing:4px;background:linear-gradient(135deg,var(--gold-light),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:12px}
+  .modal-card p{color:rgba(245,240,232,.8);font-size:16px;line-height:1.6;margin-bottom:8px}
+  .modal-message-preview{background:rgba(37,211,102,.07);border:1px solid rgba(37,211,102,.25);border-radius:6px;padding:12px 16px;font-size:13px;color:rgba(245,240,232,.75);text-align:left;line-height:1.6;margin:12px 0 18px;font-style:italic}
+  .modal-message-preview strong{color:#25D366;font-style:normal}
+
+  /* WA BTNS */
+  .whatsapp-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:16px 24px;background:linear-gradient(135deg,#25D366,#128C7E);border:none;color:#fff;font-family:'Bebas Neue',cursive;font-size:20px;letter-spacing:4px;border-radius:4px;cursor:pointer;text-decoration:none;transition:all .3s;margin-bottom:12px;box-shadow:0 4px 20px rgba(37,211,102,.3)}
+  .whatsapp-btn:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(37,211,102,.5)}
+  .modal-close-btn{background:linear-gradient(135deg,var(--gold),#A07A10);border:none;color:var(--dark);font-family:'Bebas Neue',cursive;font-size:18px;letter-spacing:4px;padding:14px 40px;border-radius:4px;cursor:pointer;transition:all .3s}
+  .modal-close-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(212,175,55,.4)}
+  .whatsapp-btn-small{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#25D366,#128C7E);border:none;color:#fff;padding:5px 12px;border-radius:3px;font-size:13px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1px;cursor:pointer;text-decoration:none;transition:all .2s}
+  .whatsapp-btn-small:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(37,211,102,.4)}
+
+  /* VIEW SS */
+  .view-screenshot-btn{background:none;border:1px solid var(--green-bright);color:var(--green-bright);padding:4px 12px;border-radius:3px;font-size:12px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-weight:600;letter-spacing:1px;transition:all .2s}
+  .view-screenshot-btn:hover{background:rgba(34,197,94,.1)}
+  .ss-modal{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:2000;display:none;align-items:center;justify-content:center;padding:20px}
+  .ss-modal.show{display:flex}
+  .ss-modal-img{max-width:90vw;max-height:85vh;border-radius:8px;border:2px solid var(--gold);object-fit:contain}
+  .ss-modal-close{position:absolute;top:20px;right:20px;background:var(--dark2);border:1px solid var(--border);color:var(--white);width:40px;height:40px;border-radius:50%;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+  .ss-modal-close:hover{border-color:var(--gold);color:var(--gold)}
+
+  /* LOADING */
+  .loading-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);z-index:3000;display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px}
+  .loading-overlay.show{display:flex}
+  .spinner{width:56px;height:56px;border:4px solid rgba(212,175,55,.2);border-top-color:var(--gold);border-radius:50%;animation:spin .9s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-text{font-family:'Barlow Condensed',sans-serif;font-size:16px;letter-spacing:4px;color:var(--gold);text-transform:uppercase}
+
+  /* TOAST */
+  .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--dark2);border:1px solid var(--border);color:var(--white);padding:14px 28px;border-radius:6px;font-size:15px;letter-spacing:1px;z-index:4000;transition:transform .4s cubic-bezier(.16,1,.3,1);white-space:nowrap}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  .toast.success{border-color:var(--green-bright);color:var(--green-bright)}
+  .toast.error{border-color:var(--red);color:#F87171}
+
+  ::-webkit-scrollbar{width:6px;height:6px}
+  ::-webkit-scrollbar-track{background:var(--dark2)}
+  ::-webkit-scrollbar-thumb{background:rgba(212,175,55,.3);border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- ═══ SETUP BANNER ═══ -->
+<div id="setup-banner">
+  <div class="setup-inner">
+    <div class="setup-title">&#9881; One-Time Firebase Setup — Takes About 3 Minutes</div>
+    <div class="setup-steps">
+      <strong>Step 1 ·</strong> Go to <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a> → Click <strong>"Add Project"</strong> → Name it anything (e.g. <code>alpha-premier-league</code>).<br>
+      <strong>Step 2 ·</strong> Inside the project, click the <strong>Web icon ( &lt;/&gt; )</strong> → Register your app → Copy the <code>firebaseConfig</code> values shown.<br>
+      <strong>Step 3 ·</strong> Go to <strong>Build → Firestore Database</strong> → Click <strong>"Create Database"</strong> → Choose <strong>"Start in test mode"</strong>.<br>
+      <strong>Step 4 ·</strong> Go to <strong>Build → Storage</strong> → Click <strong>"Get Started"</strong> → Choose <strong>"Start in test mode"</strong>.<br>
+      <strong>Step 5 ·</strong> Open this HTML file in any text editor (Notepad / VS Code), find the section labelled <code>YOUR FIREBASE CONFIG</code>, and paste your values.<br><br>
+      <strong>The section to edit looks exactly like this:</strong>
+    </div>
+    <div class="setup-config-box"><span class="hl">// ── PASTE YOUR FIREBASE CONFIG HERE ──</span>
+const firebaseConfig = {
+  apiKey:            <span class="hl">"YOUR_API_KEY"</span>,
+  authDomain:        <span class="hl">"YOUR_PROJECT_ID.firebaseapp.com"</span>,
+  projectId:         <span class="hl">"YOUR_PROJECT_ID"</span>,
+  storageBucket:     <span class="hl">"YOUR_PROJECT_ID.appspot.com"</span>,
+  messagingSenderId: <span class="hl">"YOUR_SENDER_ID"</span>,
+  appId:             <span class="hl">"YOUR_APP_ID"</span>
+};</div>
+    <button class="dismiss-btn" onclick="document.getElementById('setup-banner').classList.remove('show')">I Have Configured Firebase — Hide This ✓</button>
+  </div>
+</div>
+
+<!-- ═══ HEADER ═══ -->
+<header>
+  <div class="league-badge">
+    <span class="cricket-icon">&#127951;</span>
+    <div class="header-text">
+      <h1>Alpha Premier<br>League</h1>
+      <div class="subtitle">Official Player Registration Portal</div>
+    </div>
+    <span class="cricket-icon">&#127942;</span>
+  </div>
+  <div><span class="season-tag">&#127951; Season 2025 · Open Registrations</span></div>
+</header>
+
+<!-- ═══ MAIN ═══ -->
+<div class="container">
+
+  <div class="tabs">
+    <button class="tab-btn active" id="tab-register" onclick="switchTab('register')">&#127951; &nbsp;Register Player</button>
+    <button class="tab-btn" id="tab-admin" onclick="openAdminLogin()">&#128274; &nbsp;Admin Panel</button>
+  </div>
+
+  <!-- REGISTRATION -->
+  <div id="section-register" class="section active">
+    <div class="steps">
+      <div class="step active" id="step1"><div class="step-num">1</div><div class="step-label">Player Info</div></div>
+      <div class="step-connector"></div>
+      <div class="step" id="step2"><div class="step-num">2</div><div class="step-label">Payment</div></div>
+      <div class="step-connector"></div>
+      <div class="step" id="step3"><div class="step-num">3</div><div class="step-label">Confirm</div></div>
+    </div>
+
+    <div class="section-title">Player Information</div>
+    <div class="form-grid">
+
+      <div class="field-group span-2">
+        <div class="field-label">Player Photo <span>*</span></div>
+        <div class="photo-upload-area" id="photo-drop">
+          <img class="upload-preview" id="photo-preview" src="" alt="Preview">
+          <div id="photo-placeholder">
+            <div class="upload-icon">&#128247;</div>
+            <div class="upload-text">Click or drag to upload player photo<br><small style="color:#555">JPG, PNG · Max 5 MB</small></div>
+          </div>
+          <input type="file" id="player-photo" accept="image/*" onchange="handlePhotoUpload(this)">
+        </div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">Full Name <span>*</span></div>
+        <input type="text" id="player-name" placeholder="Enter player's full name">
+      </div>
+      <div class="field-group">
+        <div class="field-label">Phone Number <span>*</span></div>
+        <input type="tel" id="player-phone" placeholder="+91 XXXXXXXXXX" maxlength="13">
+      </div>
+
+      <div class="field-group span-2">
+        <div class="field-label">Player Type <span>*</span></div>
+        <div class="radio-group">
+          <div class="radio-option"><input type="radio" name="player-type" id="type-bat"  value="Batsman"     onchange="updatePlayingStyles()"><label for="type-bat">&#127951; Batsman</label></div>
+          <div class="radio-option"><input type="radio" name="player-type" id="type-bowl" value="Bowler"      onchange="updatePlayingStyles()"><label for="type-bowl">&#127951; Bowler</label></div>
+          <div class="radio-option"><input type="radio" name="player-type" id="type-all"  value="All-Rounder" onchange="updatePlayingStyles()"><label for="type-all">&#127951; All-Rounder</label></div>
+        </div>
+      </div>
+
+      <div class="field-group span-2">
+        <div class="field-label">Playing Style <span>*</span></div>
+        <div class="radio-group" id="style-options">
+          <p style="color:var(--gray);font-size:14px;padding:12px 0;">← Please select a player type first</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-title">Registration Fee &amp; Payment</div>
+
+    <div class="payment-box">
+      <div class="payment-amount"><small>₹</small>200</div>
+      <div class="payment-label">One-Time Registration Fee · Alpha Premier League 2025</div>
+      <div class="qr-container"><canvas id="qr-canvas"></canvas></div>
+      <div class="qr-label">Scan QR Code using any UPI App to pay ₹200</div>
+      <div class="upi-id-box" onclick="copyUPI()" title="Click to copy">
+        &#128241; &nbsp;<strong>alphapl@upi</strong>
+        <span class="upi-copied" id="upi-copied">✓ Copied!</span>
+      </div>
+
+      <div class="screenshot-upload" id="ss-drop">
+        <img class="screenshot-preview" id="ss-preview" src="" alt="">
+        <div id="ss-placeholder">
+          <div class="upload-icon">&#128248;</div>
+          <div class="upload-text">Upload Payment Screenshot<br><small style="color:#555">JPG, PNG · Clear screenshot required</small></div>
+        </div>
+        <input type="file" id="payment-screenshot" accept="image/*" onchange="handleScreenshotUpload(this)">
+      </div>
+
+      <div class="payment-status" id="payment-status">
+        <div class="status-dot"></div>
+        <span id="payment-status-text">Payment screenshot not uploaded</span>
+      </div>
+      <div class="warn-note" id="payment-warn">&#9888;&#65039; &nbsp;Registration will only be accepted after payment confirmation. Please upload a clear screenshot of your UPI payment of ₹200.</div>
+      <div class="info-note" id="payment-ok" style="display:none">&#9989; &nbsp;Payment screenshot uploaded! Your registration is ready to submit.</div>
+    </div>
+
+    <button class="submit-btn" id="submit-btn" onclick="submitRegistration()" disabled>&#128274; &nbsp;Upload Payment Screenshot to Submit</button>
+    <div class="info-note" style="margin-top:16px">&#8505;&#65039; &nbsp;After successful submission, your details will be saved securely in the cloud database.</div>
+  </div>
+
+  <!-- ADMIN PANEL -->
+  <div id="section-players" class="section">
+    <div class="admin-bar visible" id="admin-bar">
+      <div class="admin-badge"><div class="admin-dot"></div> Admin Session Active</div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="db-status connected" id="db-status-badge"><div class="db-dot"></div> Firebase Connected</div>
+        <button class="logout-btn" onclick="adminLogout()">&#128682; Logout</button>
+      </div>
+    </div>
+    <div class="table-header">
+      <div class="table-title">Registered Players</div>
+      <div class="player-count">Total: <span id="player-count-num">0</span> Players</div>
+    </div>
+    <div class="table-wrap">
+      <table id="players-table" style="display:none">
+        <thead>
+          <tr>
+            <th>#</th><th>Photo</th><th>Player Name</th><th>Phone</th>
+            <th>Player Type</th><th>Playing Style</th><th>Reg. Date</th>
+            <th>Payment</th><th>Screenshot</th><th>WhatsApp</th>
+          </tr>
+        </thead>
+        <tbody id="players-tbody"></tbody>
+      </table>
+    </div>
+    <div class="empty-state" id="empty-state">
+      <div class="empty-icon">&#127951;</div>
+      <p>No players registered yet.<br>Be the first to join Alpha Premier League!</p>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN LOGIN MODAL -->
+<div class="admin-modal-overlay" id="admin-login-modal">
+  <div class="admin-modal-card">
+    <div style="text-align:center;font-size:44px;margin-bottom:12px;">&#128274;</div>
+    <div class="admin-modal-title">Admin Access</div>
+    <div class="admin-modal-sub">Alpha Premier League · Restricted Zone</div>
+    <div class="admin-input-wrap">
+      <input type="password" id="admin-password-input" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')verifyAdmin()">
+      <button class="toggle-pw" onclick="togglePwVisibility()">👁️</button>
+    </div>
+    <div class="login-error-msg" id="login-error">&#10060; Incorrect password. Please try again.</div>
+    <button class="admin-login-btn" onclick="verifyAdmin()">&#128275; &nbsp;Login</button>
+    <button class="admin-cancel-btn" onclick="closeAdminLogin()">Cancel</button>
+  </div>
+</div>
+
+<!-- SUCCESS MODAL -->
+<div class="modal-overlay" id="success-modal">
+  <div class="modal-card">
+    <div class="success-icon">&#127942;</div>
+    <h2>Registration<br>Successful!</h2>
+    <p>Welcome to the <strong>Alpha Premier League!</strong></p>
+    <p id="modal-player-name" style="color:var(--gold-light);font-size:20px;font-weight:700;letter-spacing:1px;margin:8px 0;"></p>
+    <p style="font-size:14px;color:var(--gray);margin-top:4px;">Your details have been saved to the database.</p>
+    <button class="modal-close-btn" onclick="closeModal()">Done ✓</button>
+  </div>
+</div>
+
+<!-- SCREENSHOT VIEWER -->
+<div class="ss-modal" id="ss-viewer-modal" onclick="this.classList.remove('show')">
+  <button class="ss-modal-close" onclick="document.getElementById('ss-viewer-modal').classList.remove('show')">✕</button>
+  <img class="ss-modal-img" id="ss-viewer-img" src="" alt="">
+</div>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loading-text">Saving to Database…</div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+// ╔══════════════════════════════════════════════════════╗
+// ║        YOUR FIREBASE CONFIG — PASTE VALUES HERE      ║
+// ╚══════════════════════════════════════════════════════╝
+const firebaseConfig = {
+  apiKey:            "AIzaSyCInAjMcR6OsctIOL9Fc0hIEb6YyF7EIkQ",
+  authDomain:        "alpha-premier-league2026.firebaseapp.com",
+  projectId:         "alpha-premier-league2026",
+  storageBucket:     "alpha-premier-league2026.firebasestorage.app",
+  messagingSenderId: "609769724795",
+  appId:             "1:609769724795:web:e310277fb9276a222dfbde"
+};
+// ╚══════════════════════════════════════════════════════╝
+
+// ── ADMIN PASSWORD — change this! ──
+const ADMIN_PASSWORD = 'APL@2025';
+
+// ── STATE ──
+let db, firebaseReady = false;
+let isAdminLoggedIn = false;
+let photoFile = null, screenshotFile = null, paymentUploaded = false;
+let photoBase64 = null, screenshotBase64 = null;
+
+// ── INIT ──
+(function initFirebase() {
+  try {
+    if (firebaseConfig.apiKey === 'YOUR_API_KEY') { updateDbBadge(false); return; }
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    firebaseReady = true;
+    updateDbBadge(true);
+  } catch(e) { console.error(e); updateDbBadge(false); }
+})();
+
+function updateDbBadge(ok) {
+  const b = document.getElementById('db-status-badge');
+  if(!b) return;
+  b.className = 'db-status ' + (ok ? 'connected' : 'disconnected');
+  b.innerHTML = `<div class="db-dot"></div> ${ok ? 'Firebase Connected ✓' : 'Firebase Not Configured'}`;
+}
+
+// ── QR CODE ──
+window.addEventListener('load', () => {
+  try {
+    new QRCode(document.getElementById('qr-canvas'), {
+      text: 'upi://pay?pa=alphapl@upi&pn=AlphaPremierLeague&am=200&cu=INR&tn=APL2025',
+      width:180, height:180, colorDark:'#000', colorLight:'#fff',
+      correctLevel: QRCode.CorrectLevel.H
+    });
+  } catch(e) {
+    document.getElementById('qr-canvas').outerHTML =
+      '<div style="width:180px;height:180px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;color:#000;text-align:center;padding:16px;line-height:1.6">UPI QR<br><strong>alphapl@upi</strong><br>₹200</div>';
+  }
+});
+
+// ── TABS ──
+function switchTab(tab) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('section-'+tab).classList.add('active');
+  document.getElementById('tab-register').classList.add('active');
+}
+
+// ── ADMIN ──
+function openAdminLogin() {
+  if(isAdminLoggedIn){showPlayersPanel();return;}
+  document.getElementById('admin-login-modal').classList.add('show');
+  document.getElementById('admin-password-input').value='';
+  document.getElementById('login-error').classList.remove('show');
+  setTimeout(()=>document.getElementById('admin-password-input').focus(),100);
+}
+function closeAdminLogin(){document.getElementById('admin-login-modal').classList.remove('show')}
+function togglePwVisibility(){const i=document.getElementById('admin-password-input');i.type=i.type==='password'?'text':'password'}
+function verifyAdmin(){
+  const val=document.getElementById('admin-password-input').value;
+  const inp=document.getElementById('admin-password-input');
+  if(val===ADMIN_PASSWORD){isAdminLoggedIn=true;closeAdminLogin();showPlayersPanel();}
+  else{inp.classList.add('error');document.getElementById('login-error').classList.add('show');setTimeout(()=>inp.classList.remove('error'),500);inp.value='';inp.focus();}
+}
+function adminLogout(){
+  isAdminLoggedIn=false;
+  switchTab('register');
+  document.getElementById('tab-admin').textContent='\u{1F512}  Admin Panel';
+}
+function showPlayersPanel(){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('section-players').classList.add('active');
+  document.getElementById('tab-admin').classList.add('active');
+  document.getElementById('tab-admin').textContent='\u2705  Admin Panel';
+  loadPlayers();
+}
+
+// ── PHOTO ──
+function handlePhotoUpload(input){
+  if(!input.files||!input.files[0])return;
+  photoFile=input.files[0];
+  const r=new FileReader();
+  r.onload=e=>{
+    photoBase64=e.target.result;
+    const p=document.getElementById('photo-preview');
+    p.src=photoBase64;p.style.display='block';
+    document.getElementById('photo-placeholder').style.display='none';
+    document.getElementById('photo-drop').classList.add('has-file');
+  };
+  r.readAsDataURL(photoFile);
+}
+
+// ── PLAYING STYLES ──
+function updatePlayingStyles(){
+  const type=document.querySelector('input[name="player-type"]:checked')?.value;
+  const c=document.getElementById('style-options');
+  let s=[];
+  if(type==='Batsman')    s=[{id:'rh-bat',val:'Right-Handed Batsman',label:'&#127951; Right-Handed Batsman'},{id:'lh-bat',val:'Left-Handed Batsman',label:'&#127951; Left-Handed Batsman'}];
+  else if(type==='Bowler')s=[{id:'rh-bowl',val:'Right-Arm Bowler',label:'&#127951; Right-Arm Bowler'},{id:'lh-bowl',val:'Left-Arm Bowler',label:'&#127951; Left-Arm Bowler'}];
+  else if(type==='All-Rounder')s=[
+    {id:'ar1',val:'Right-Handed Batsman / Right-Arm Bowler',label:'&#127951; Right-Bat · Right-Bowl'},
+    {id:'ar2',val:'Left-Handed Batsman / Left-Arm Bowler',label:'&#127951; Left-Bat · Left-Bowl'},
+    {id:'ar3',val:'Right-Handed Batsman / Left-Arm Bowler',label:'&#127951; Right-Bat · Left-Bowl'},
+    {id:'ar4',val:'Left-Handed Batsman / Right-Arm Bowler',label:'&#127951; Left-Bat · Right-Bowl'}
+  ];
+  c.innerHTML=s.map(x=>`<div class="radio-option" style="min-width:180px"><input type="radio" name="playing-style" id="${x.id}" value="${x.val}"><label for="${x.id}">${x.label}</label></div>`).join('');
+}
+
+// ── SCREENSHOT ──
+function handleScreenshotUpload(input){
+  if(!input.files||!input.files[0])return;
+  screenshotFile=input.files[0];
+  const r=new FileReader();
+  r.onload=e=>{
+    screenshotBase64=e.target.result;
+    const p=document.getElementById('ss-preview');
+    p.src=screenshotBase64;p.style.display='block';
+    document.getElementById('ss-placeholder').style.display='none';
+    document.getElementById('ss-drop').classList.add('uploaded');
+    paymentUploaded=true;
+    document.getElementById('payment-status').classList.add('verified');
+    document.getElementById('payment-status-text').textContent='Payment screenshot verified ✓';
+    document.getElementById('payment-warn').style.display='none';
+    document.getElementById('payment-ok').style.display='flex';
+    const btn=document.getElementById('submit-btn');
+    btn.disabled=false;btn.innerHTML='&#9989; &nbsp;Submit Registration';
+    document.getElementById('step1').classList.remove('active');document.getElementById('step1').classList.add('done');
+    document.getElementById('step2').classList.remove('active');document.getElementById('step2').classList.add('done');
+    document.getElementById('step3').classList.add('active');
+  };
+  r.readAsDataURL(screenshotFile);
+}
+
+// ── UPI COPY ──
+function copyUPI(){
+  navigator.clipboard.writeText('alphapl@upi').then(()=>{
+    const el=document.getElementById('upi-copied');el.classList.add('show');
+    setTimeout(()=>el.classList.remove('show'),2000);
+  });
+}
+
+// ── TOAST ──
+function showToast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast '+type+' show';
+  setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+// ── LOADING ──
+function setLoading(show,text='Saving to Database…'){
+  document.getElementById('loading-text').textContent=text;
+  document.getElementById('loading-overlay').classList.toggle('show',show);
+}
+
+// ── VALIDATE ──
+function validateForm(){
+  const name =document.getElementById('player-name').value.trim();
+  const phone=document.getElementById('player-phone').value.trim();
+  const type =document.querySelector('input[name="player-type"]:checked');
+  const style=document.querySelector('input[name="playing-style"]:checked');
+  if(!name)                   {showToast('Please enter the player name.','error');return false;}
+  if(!phone||phone.length<10) {showToast('Please enter a valid phone number.','error');return false;}
+  if(!type)                   {showToast('Please select a player type.','error');return false;}
+  if(!style)                  {showToast('Please select a playing style.','error');return false;}
+  if(!photoFile)              {showToast('Please upload the player photo.','error');return false;}
+  if(!paymentUploaded)        {showToast('Please upload the payment screenshot.','error');return false;}
+  return true;
+}
+
+// ── WA MESSAGE ──
+function buildWAMsg(name,type,style,phone){
+  return `🏏 *Alpha Premier League 2025*\n\nCongratulations, *${name}*! 🎉\n\nYour registration has been successfully accepted for the *Alpha Premier League*.\n\n📋 *Your Details:*\n• Player Type: ${type}\n• Playing Style: ${style}\n• Phone: ${phone}\n\n💰 Payment of ₹200 confirmed ✅\n\nGet ready to play! We will share further details soon.\n\n*– Alpha Premier League Team* 🏆`;
+}
+
+function waLink(phone,msg){
+  const clean=phone.replace(/\D/g,'');
+  const num=clean.startsWith('91')?clean:'91'+clean;
+  return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
+}
+
+// ── COMPRESS IMAGE (reduces size before saving to Firestore) ──
+function compressImage(base64, maxWidth, quality){
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      const canvas=document.createElement('canvas');
+      let w=img.width, h=img.height;
+      if(w>maxWidth){ h=Math.round(h*maxWidth/w); w=maxWidth; }
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.src=base64;
+  });
+}
+
+// ── SUBMIT ──
+async function submitRegistration(){
+  if(!validateForm())return;
+  if(!firebaseReady){showToast('Firebase not configured. Please complete setup first.','error');return;}
+
+  const name =document.getElementById('player-name').value.trim();
+  const phone=document.getElementById('player-phone').value.trim();
+  const type =document.querySelector('input[name="player-type"]:checked').value;
+  const style=document.querySelector('input[name="playing-style"]:checked').value;
+  const now=new Date();
+  const date=now.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  const time=now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+
+  try{
+    setLoading(true,'Compressing images…');
+    const photoURL      = await compressImage(photoBase64, 400, 0.7);
+    const screenshotURL = await compressImage(screenshotBase64, 800, 0.7);
+
+    setLoading(true,'Saving to database…');
+    await db.collection('players').add({
+      name, phone, type, style,
+      photoURL, screenshotURL,
+      date, time,
+      registeredAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    setLoading(false);
+    document.getElementById('modal-player-name').textContent=name;
+    document.getElementById('success-modal').classList.add('show');
+
+  }catch(err){
+    setLoading(false);
+    console.error(err);
+    showToast('Error: '+err.message,'error');
+  }
+}
+
+// ── CLOSE MODAL + RESET ──
+function closeModal(){
+  document.getElementById('success-modal').classList.remove('show');
+  resetForm();
+}
+function resetForm(){
+  document.getElementById('player-name').value='';
+  document.getElementById('player-phone').value='';
+  document.querySelectorAll('input[type="radio"]').forEach(r=>r.checked=false);
+  document.getElementById('style-options').innerHTML='<p style="color:var(--gray);font-size:14px;padding:12px 0;">← Please select a player type first</p>';
+  photoFile=screenshotFile=null;photoBase64=screenshotBase64=null;paymentUploaded=false;
+  const pp=document.getElementById('photo-preview');pp.style.display='none';pp.src='';
+  document.getElementById('photo-placeholder').style.display='block';
+  document.getElementById('photo-drop').classList.remove('has-file');
+  document.getElementById('player-photo').value='';
+  const sp=document.getElementById('ss-preview');sp.style.display='none';sp.src='';
+  document.getElementById('ss-placeholder').style.display='block';
+  document.getElementById('ss-drop').classList.remove('uploaded');
+  document.getElementById('payment-screenshot').value='';
+  document.getElementById('payment-status').classList.remove('verified');
+  document.getElementById('payment-status-text').textContent='Payment screenshot not uploaded';
+  document.getElementById('payment-warn').style.display='flex';
+  document.getElementById('payment-ok').style.display='none';
+  const btn=document.getElementById('submit-btn');btn.disabled=true;btn.innerHTML='&#128274; &nbsp;Upload Payment Screenshot to Submit';
+  document.getElementById('step1').classList.remove('done');document.getElementById('step1').classList.add('active');
+  document.getElementById('step2').classList.remove('done','active');
+  document.getElementById('step3').classList.remove('active');
+}
+
+// ── LOAD FROM FIRESTORE ──
+async function loadPlayers(){
+  if(!firebaseReady){renderTable([]);return;}
+  setLoading(true,'Loading players from database…');
+  try{
+    const snap=await db.collection('players').orderBy('registeredAt','asc').get();
+    const data=snap.docs.map(d=>({id:d.id,...d.data()}));
+    setLoading(false);renderTable(data);
+  }catch(e){
+    setLoading(false);
+    showToast('Could not load players: '+e.message,'error');
+    renderTable([]);
+  }
+}
+
+// ── RENDER TABLE ──
+function renderTable(data){
+  const tbody=document.getElementById('players-tbody');
+  const empty=document.getElementById('empty-state');
+  const table=document.getElementById('players-table');
+  document.getElementById('player-count-num').textContent=data.length;
+  if(!data.length){empty.style.display='block';table.style.display='none';return;}
+  empty.style.display='none';table.style.display='table';
+  tbody.innerHTML=data.map((p,i)=>{
+    const tc=p.type==='Bowler'?'type-bowl':p.type==='All-Rounder'?'type-all':'type-bat';
+    const msg=buildWAMsg(p.name,p.type,p.style,p.phone);
+    const wl=waLink(p.phone,msg);
+    return `<tr>
+      <td><span class="serial-num">${String(i+1).padStart(2,'0')}</span></td>
+      <td>${p.photoURL?`<img src="${p.photoURL}" class="player-photo-cell" alt="${p.name}">`:'<div style="width:46px;height:46px;border-radius:50%;background:var(--dark3);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:20px;">&#128100;</div>'}</td>
+      <td style="font-weight:600;font-size:16px;">${p.name}</td>
+      <td style="font-family:'Barlow Condensed';letter-spacing:1px;">${p.phone}</td>
+      <td><span class="type-badge ${tc}">${p.type}</span></td>
+      <td style="font-size:14px;color:rgba(245,240,232,.7);">${p.style}</td>
+      <td style="font-family:'Barlow Condensed';letter-spacing:1px;font-size:14px;">${p.date}<br><span style="color:var(--gray);font-size:12px;">${p.time}</span></td>
+      <td><span class="payment-confirmed">&#9989; ₹200 Paid</span></td>
+      <td>${p.screenshotURL?`<button class="view-screenshot-btn" onclick="viewSS('${p.screenshotURL}')">View &#128206;</button>`:'<span style="color:var(--gray);font-size:13px;">N/A</span>'}</td>
+      <td><a class="whatsapp-btn-small" href="${wl}" target="_blank">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Send
+      </a></td>
+    </tr>`;
+  }).join('');
+}
+
+function viewSS(url){
+  document.getElementById('ss-viewer-img').src=url;
+  document.getElementById('ss-viewer-modal').classList.add('show');
+}
+</script>
+</body>
+</html>
